@@ -2,8 +2,7 @@ package codes.atomys.advr;
 
 import codes.atomys.advr.config.gui.ConfigurationScreen;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraftforge.client.ConfigScreenHandler;
-import net.minecraftforge.fml.ModLoadingContext;
+import net.minecraftforge.common.MinecraftForge;
 
 /**
  * This class integrates with the Mod Menu API to provide a configuration screen
@@ -28,7 +27,6 @@ public final class ForgeModMenu {
    * </p>
    */
   public static void registerModsPage() {
-    ModLoadingContext.get().registerExtensionPoint(ConfigScreenHandler.ConfigScreenFactory.class,
-        () -> new ConfigScreenHandler.ConfigScreenFactory((client, parent) -> ConfigurationScreen.screen(parent)));
+    MinecraftForge.registerConfigScreen(modsScreen -> ConfigurationScreen.screen(modsScreen));
   }
 }

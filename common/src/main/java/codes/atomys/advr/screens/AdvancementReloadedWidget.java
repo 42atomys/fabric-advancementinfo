@@ -7,6 +7,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Function;
 import net.minecraft.advancements.Advancement;
 import net.minecraft.advancements.AdvancementNode;
 import net.minecraft.advancements.AdvancementProgress;
@@ -15,6 +16,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.StringSplitter;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.advancements.AdvancementWidgetType;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.locale.Language;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentUtils;
@@ -66,6 +68,8 @@ public class AdvancementReloadedWidget {
   private List<ReloadedCriterionProgress> steps;
   private final int x;
   private final int y;
+  private final Function<ResourceLocation, RenderType> renderTypeGui = (resourceLocation) -> RenderType
+      .guiTextured(resourceLocation);
 
   /**
    * The constructor for the AdvancementReloadedWidget class.
@@ -300,7 +304,8 @@ public class AdvancementReloadedWidget {
       } else {
         advancementObtainedStatus = AdvancementWidgetType.UNOBTAINED;
       }
-      context.blitSprite(advancementObtainedStatus.frameSprite(this.display.getType()), x + this.x + 3,
+      context.blitSprite(this.renderTypeGui, advancementObtainedStatus.frameSprite(this.display.getType()),
+          x + this.x + 3,
           y + this.y, 26, 26);
       context.renderFakeItem(this.display.getIcon(), x + this.x + 8, y + this.y + 5);
     }
@@ -445,13 +450,15 @@ public class AdvancementReloadedWidget {
     final int n = 32 + this.description.size() * 9;
     if (!this.description.isEmpty())
       if (bl2) {
-        context.blitSprite(TITLE_BOX_TEXTURE, m, l + 26 - n, this.width, n);
+        context.blitSprite(this.renderTypeGui, TITLE_BOX_TEXTURE, m, l + 26 - n, this.width, n);
       } else {
-        context.blitSprite(TITLE_BOX_TEXTURE, m, l, this.width, n);
+        context.blitSprite(this.renderTypeGui, TITLE_BOX_TEXTURE, m, l, this.width, n);
       }
-    context.blitSprite(advancementObtainedStatus.boxSprite(), 200, 26, 0, 0, m, l, j, 26);
-    context.blitSprite(advancementObtainedStatus2.boxSprite(), 200, 26, 200 - k, 0, m + j, l, k, 26);
-    context.blitSprite(advancementObtainedStatus3.frameSprite(this.display.getType()), originX + this.x + 3,
+    context.blitSprite(this.renderTypeGui, advancementObtainedStatus.boxSprite(), 200, 26, 0, 0, m, l, j, 26);
+    context.blitSprite(this.renderTypeGui, advancementObtainedStatus2.boxSprite(), 200, 26, 200 - k, 0, m + j, l, k,
+        26);
+    context.blitSprite(this.renderTypeGui, advancementObtainedStatus3.frameSprite(this.display.getType()),
+        originX + this.x + 3,
         originY + this.y, 26, 26);
     if (bl) {
       context.drawString(this.client.font, this.title, m + 5, originY + this.y + 9, -1);

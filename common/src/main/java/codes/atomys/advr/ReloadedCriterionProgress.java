@@ -5,6 +5,7 @@ import codes.atomys.advr.utils.Utils;
 import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.stream.Collectors;
+import net.minecraft.ResourceLocationException;
 import net.minecraft.advancements.Advancement;
 import net.minecraft.advancements.AdvancementNode;
 import net.minecraft.advancements.AdvancementProgress;
@@ -21,7 +22,7 @@ import net.minecraft.util.CommonColors;
 public class ReloadedCriterionProgress {
   private final AdvancementNode advancementNode;
   private final AdvancementProgress progress;
-  private final ResourceLocation criterion;
+  private ResourceLocation criterion;
 
   private boolean obtained;
 
@@ -37,7 +38,7 @@ public class ReloadedCriterionProgress {
       final String criterionName) {
     this.advancementNode = advancementNode;
     this.progress = progress;
-    this.criterion = ResourceLocation.parse(criterionName);
+    this.criterion = sanitizeResourceLocationString(criterionName);
 
     this.obtained = progress.getCriterion(criterionName).isDone();
   }
@@ -237,5 +238,40 @@ public class ReloadedCriterionProgress {
         "Unable to translate {} to a more meaningful name, adding as is, performance may be degraded. You can add your own translation for this criterion by adding the translation key: `{}`.",
         criteria, this.getTranslationKey());
     return Component.literal(criteria);
+  }
+
+  /**
+   * Safely creates a ResourceLocation from the given string.
+   * <p>
+   * Attempts to parse the provided string into a valid ResourceLocation. If
+   * the parsing fails due to invalid characters, an error is logged, and the
+   * string is sanitized by replacing invalid characters with underscores.
+   * A "ghost" ResourceLocation is then created with the sanitized string using
+   * the "minecraft" namespace.
+   * </p>
+   *
+   * @param str the string to parse into a ResourceLocation
+   * @return a valid ResourceLocation object
+   */
+  private static ResourceLocation sanitizeResourceLocationString(String str) {
+    str = str.toLowerCase(); // Force lowercase
+
+    try {
+      return ResourceLocation.parse(str);
+    } catch (final ResourceLocationException e) {
+      Utils.LOGGER.error("Failed to parse criterion name: {}, trying to initial a ghost criterion", str);
+
+      for (int i = 0; i < str.length(); i++) {
+        if (!ResourceLocation.validPathChar(str.charAt(i))) {
+          // Replace invalid char by an underscore
+          str = str.substring(0, i) + "_" + str.substring(i + 1);
+        }
+      }
+
+      Utils.LOGGER.warn(
+          "Criterion name sanitized to: minecraft:{}. If you are the developer, please follow the minecraft naming convention (Non [a-z0-9/._-] character in path of location).",
+          str);
+      return ResourceLocation.fromNamespaceAndPath("minecraft", str);
+    }
   }
 }

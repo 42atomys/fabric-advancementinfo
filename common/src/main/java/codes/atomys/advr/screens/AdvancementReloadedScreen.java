@@ -4,7 +4,9 @@ import codes.atomys.advr.ClickableRegion;
 import codes.atomys.advr.ReloadedCriterionProgress;
 import codes.atomys.advr.TabPlacement;
 import codes.atomys.advr.config.Configuration;
+import codes.atomys.advr.config.gui.ConfigurationScreen;
 import codes.atomys.advr.utils.Memory;
+import codes.atomys.advr.utils.Utils;
 import com.google.common.collect.Maps;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -14,14 +16,18 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.advancements.AdvancementNode;
 import net.minecraft.advancements.AdvancementProgress;
 import net.minecraft.advancements.DisplayInfo;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Renderable;
+import net.minecraft.client.gui.components.SpriteIconButton;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ClientAdvancements;
 import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ServerboundSeenAdvancementsPacket;
@@ -55,6 +61,9 @@ public class AdvancementReloadedScreen extends Screen implements ClientAdvanceme
 
   private static final ResourceLocation criteriasSeparator = ResourceLocation
       .parse("advancements_reloaded:textures/gui/inworld_right_separator.png");
+  // As a GUI Textured rendered type, the full path arent needed, the path start
+  // at `textures/gui/sprites/{{texture}}`
+  private static final ResourceLocation GEAR_GUI_SPRITE_TEXURE = ResourceLocation.parse("advancements_reloaded:gear");
   private static final ResourceLocation SCROLLER_TEXTURE = ResourceLocation.withDefaultNamespace("widget/scroller");
   private static final ResourceLocation SCROLLER_BACKGROUND_TEXTURE = ResourceLocation
       .withDefaultNamespace("widget/scroller_background");
@@ -72,6 +81,8 @@ public class AdvancementReloadedScreen extends Screen implements ClientAdvanceme
   private List<ClickableRegion> clickableRegions;
   private int scrollOffset = 0;
   private int contentHeight = 0;
+  private final Function<ResourceLocation, RenderType> renderTypeGui = (resourceLocation) -> RenderType
+      .guiTextured(resourceLocation);
 
   /**
    * Constructs a new AdvancementReloadedScreen with the specified
@@ -116,7 +127,24 @@ public class AdvancementReloadedScreen extends Screen implements ClientAdvanceme
       this.selectedTab.ifPresent(tab -> this.advancementHandler.setSelectedTab(tab.getRoot().holder(), true));
     }
 
-    this.setClickableRegions();
+    this.initClickableRegions();
+    this.initComponents();
+  }
+
+  private void initComponents() {
+    final SpriteIconButton settingsIconButton = this.addRenderableWidget(
+        SpriteIconButton.builder(
+            Component.translatable("options.settings"),
+            button -> this.minecraft.setScreen(ConfigurationScreen.screen(this)),
+            true)
+            .width(20)
+            .sprite(GEAR_GUI_SPRITE_TEXURE, 14, 14)
+            .build());
+    settingsIconButton.setPosition(this.width - 25, 5);
+
+    Utils.LOGGER.info("Screen initialized with settings button at position: " + settingsIconButton.getX() + ", "
+        + settingsIconButton.getY() + "." + " The button has a width of " + settingsIconButton.getWidth()
+        + " and a height of " + settingsIconButton.getHeight() + ".");
   }
 
   /**
@@ -136,7 +164,7 @@ public class AdvancementReloadedScreen extends Screen implements ClientAdvanceme
    * configuration option {@link Configuration} is true.</li>
    * </ul>
    */
-  private void setClickableRegions() {
+  private void initClickableRegions() {
     this.clickableRegions = new ArrayList<ClickableRegion>();
     this.clickableRegions.add(
         ClickableRegion.create("advancement_tree", 0, Configuration.headerHeight + 1,
@@ -451,16 +479,76 @@ public class AdvancementReloadedScreen extends Screen implements ClientAdvanceme
    */
   @Override
   public void render(final GuiGraphics context, final int mouseX, final int mouseY, final float delta) {
-    // ! FIXME: Transparent background is broken on Forge
-    renderBackground(context, mouseX, mouseY, delta);
-    super.render(context, mouseX, mouseY, delta);
+    final int headerOffset = Configuration.headerHeight + 1; // 1 are the separator pixels
 
-    final int i = 0;
-    final int j = Configuration.headerHeight + 1; // 1 are the separator pixels
-    this.drawAdvancementTree(context, mouseX, mouseY, i, j);
-    this.drawWindow(context, i, j);
-    this.drawWidgetTooltip(context, mouseX, mouseY, i, j);
-    this.drawAdvancementCriterias(context, i, j);
+    this.renderBackground(context, mouseX, mouseY, delta);
+    this.renderAdvancementTree(context, mouseX, mouseY, 0, headerOffset);
+    this.renderWindow(context, 0, headerOffset);
+    this.renderWidgetTooltip(context, mouseX, mouseY, 0, headerOffset);
+    this.renderAdvancementCriterias(context, 0, headerOffset);
+    this.renderRenderable(context, mouseX, mouseY, delta);
+  }
+
+  /**
+   * Renders all renderable components on the screen.
+   * <p>
+   * This method iterates over all the renderable components and invokes their
+   * render method with the given graphics context and mouse coordinates.
+   * </p>
+   *
+   * @param context the graphics context used for rendering
+   * @param mouseX  the x-coordinate of the mouse
+   * @param mouseY  the y-coordinate of the mouse
+   * @param delta   the time elapsed since the last frame
+   */
+  public void renderRenderable(final GuiGraphics context, final int mouseX, final int mouseY, final float delta) {
+    for (final Renderable renderable : this.renderables) {
+      context.pose().pushPose();
+      context.pose().translate(0.0D, 0.0D, 220.0D);
+      renderable.render(context, mouseX, mouseY, delta);
+      context.pose().popPose();
+    }
+  }
+
+  /**
+   * Renders the background of the screen.
+   * <p>
+   * This method is called by the screen before rendering the rest of the UI.
+   * </p>
+   * <p>
+   * The style of the background is determined by the
+   * {@link Configuration#backgroundStyle} field. If it is set to
+   * {@link Configuration.BackgroundStyle#TRANSPARENT}, the method renders a
+   * blurred version of the background. If it is set to
+   * {@link Configuration.BackgroundStyle#BLACK}, the method renders a solid
+   * black background. If it is set to
+   * {@link Configuration.BackgroundStyle#ACHIEVEMENT}, the method renders the
+   * background of the currently selected advancement, if any.
+   * </p>
+   *
+   * @param context the GUI graphics
+   * @param mouseX  the mouse X-coordinate
+   * @param mouseY  the mouse Y-coordinate
+   * @param delta   the time elapsed since the last frame
+   */
+  @Override
+  public void renderBackground(final GuiGraphics context, final int mouseX, final int mouseY, final float delta) {
+    switch (Configuration.backgroundStyle) {
+      case Configuration.BackgroundStyle.TRANSPARENT:
+        this.renderBlurredBackground();
+        break;
+      case Configuration.BackgroundStyle.BLACK:
+        context.fill(0, 0, width, height, CommonColors.BLACK);
+        break;
+      case Configuration.BackgroundStyle.ACHIEVEMENT:
+        this.selectedTab.ifPresent(tab -> {
+          final ResourceLocation textureResourceLocation = tab.getDisplay().getBackground()
+              .orElse(TextureManager.INTENTIONAL_MISSING_TEXTURE);
+          context.blit(this.renderTypeGui, textureResourceLocation, 0, 0, 0.0F, 0.0F, width, height, 16, 16);
+        });
+        context.fill(0, 0, width, height, -200, Mth.floor(0.7 * 255.0F) << 24);
+        break;
+    }
   }
 
   /**
@@ -492,27 +580,8 @@ public class AdvancementReloadedScreen extends Screen implements ClientAdvanceme
    * @param x       the X-coordinate of the tab
    * @param y       the Y-coordinate of the tab
    */
-  private void drawAdvancementTree(final GuiGraphics context, final int mouseX, final int mouseY, final int x,
+  private void renderAdvancementTree(final GuiGraphics context, final int mouseX, final int mouseY, final int x,
       final int y) {
-
-    switch (Configuration.backgroundStyle) {
-      case Configuration.BackgroundStyle.TRANSPARENT:
-        break;
-      case Configuration.BackgroundStyle.BLACK:
-        context.fill(0, 0, width, height, CommonColors.BLACK);
-        break;
-      case Configuration.BackgroundStyle.ACHIEVEMENT:
-        this.selectedTab.ifPresent(tab -> {
-          final ResourceLocation textureResourceLocation = tab.getDisplay().getBackground()
-              .orElse(TextureManager.INTENTIONAL_MISSING_TEXTURE);
-          context.blit(textureResourceLocation, 0, 0, 0.0F, 0.0F, width, height, 16, 16);
-        });
-        context.fill(0, 0, width, height, -200, Mth.floor(0.7 * 255.0F) << 24);
-        context.pose().pushPose();
-        context.pose().translate(0.0F, 0.0F, 300.0F);
-        break;
-    }
-
     if (this.selectedTab.isEmpty()) {
       context.drawCenteredString(this.font, EMPTY_TEXT, width / 2,
           (height / 2) - this.font.lineHeight * 2, CommonColors.WHITE);
@@ -544,7 +613,7 @@ public class AdvancementReloadedScreen extends Screen implements ClientAdvanceme
    * @param x       the x position of the screen
    * @param y       the y position of the screen
    */
-  public void drawAdvancementCriterias(final GuiGraphics context, final int x, final int y) {
+  public void renderAdvancementCriterias(final GuiGraphics context, final int x, final int y) {
     if (!this.hasVisibleSidebar() || Configuration.criteriasWidth == 0)
       return;
 
@@ -559,7 +628,7 @@ public class AdvancementReloadedScreen extends Screen implements ClientAdvanceme
     context.fill(width - Configuration.criteriasWidth, Configuration.headerHeight, width,
         height - Configuration.footerHeight, Mth.floor(0.5F * 255.0F) << 24);
 
-    context.blit(criteriasSeparator, width - Configuration.criteriasWidth,
+    context.blit(this.renderTypeGui, criteriasSeparator, width - Configuration.criteriasWidth,
         Configuration.headerHeight + 1, 0.0F, 0.0F, 2,
         height - Configuration.headerHeight - Configuration.footerHeight
             - 2,
@@ -626,7 +695,7 @@ public class AdvancementReloadedScreen extends Screen implements ClientAdvanceme
 
     // Drawing scrollbar background
     RenderSystem.enableBlend();
-    context.blitSprite(SCROLLER_BACKGROUND_TEXTURE, width - 6, Configuration.headerHeight,
+    context.blitSprite(this.renderTypeGui, SCROLLER_BACKGROUND_TEXTURE, width - 6, Configuration.headerHeight,
         6, drawingHeight);
 
     // Drawing the scrollbar
@@ -636,7 +705,7 @@ public class AdvancementReloadedScreen extends Screen implements ClientAdvanceme
             * (this.scrollOffset / (double) (this.contentHeight - (drawingHeight))));
 
     // draw the scrollbar
-    context.blitSprite(SCROLLER_TEXTURE, width - 6, scrollBarY, 6, scrollBarHeight);
+    context.blitSprite(this.renderTypeGui, SCROLLER_TEXTURE, width - 6, scrollBarY, 6, scrollBarHeight);
     RenderSystem.disableBlend();
 
   }
@@ -679,7 +748,7 @@ public class AdvancementReloadedScreen extends Screen implements ClientAdvanceme
    * @param x       the x coordinate of the window
    * @param y       the y coordinate of the window
    */
-  public void drawWindow(final GuiGraphics context, final int x, int y) {
+  public void renderWindow(final GuiGraphics context, final int x, int y) {
     RenderSystem.enableBlend();
     context.pose().pushPose();
     context.pose().translate(0.0F, 0.0F, 100.0F);
@@ -698,7 +767,8 @@ public class AdvancementReloadedScreen extends Screen implements ClientAdvanceme
             textureHeight = Configuration.headerHeight % 16;
           }
 
-          context.blit(textureResourceLocation, 16 * m, 16 * n, 0.0F, 0.0F, 16, textureHeight, 16, 16);
+          context.blit(this.renderTypeGui, textureResourceLocation, 16 * m, 16 * n, 0.0F, 0.0F, 16, textureHeight,
+              16, 16);
         }
       }
       context.fill(0, 0, width, Configuration.headerHeight,
@@ -713,7 +783,7 @@ public class AdvancementReloadedScreen extends Screen implements ClientAdvanceme
             textureHeight = Configuration.headerHeight % 16;
           }
 
-          context.blit(textureResourceLocation, 16 * m,
+          context.blit(this.renderTypeGui, textureResourceLocation, 16 * m,
               (height - Configuration.footerHeight) + 16 * n, 0.0F,
               0.0F, 16, textureHeight, 16, 16);
         }
@@ -733,9 +803,12 @@ public class AdvancementReloadedScreen extends Screen implements ClientAdvanceme
 
     if (this.tabs.size() > 1) {
       for (final AdvancementReloadedTab advancementTab : this.tabs.values()) {
-        if (advancementTab.getType() == TabPlacement.BELOW) {
+        if (advancementTab.getTabPlacement() == TabPlacement.ABOVE) {
+          y = Configuration.headerHeight + 1;
+        } else {
           y = height - Configuration.footerHeight - 1;
         }
+
         advancementTab.setPos(x + 4, y);
         advancementTab.drawBackground(context, advancementTab == this.selectedTab.orElse(null));
         advancementTab.drawIcon(context);
@@ -769,13 +842,13 @@ public class AdvancementReloadedScreen extends Screen implements ClientAdvanceme
 
     // Bind and draw header texture
     RenderSystem.setShaderTexture(0, Screen.INWORLD_HEADER_SEPARATOR);
-    context.blit(Screen.INWORLD_HEADER_SEPARATOR, 0,
+    context.blit(this.renderTypeGui, Screen.INWORLD_HEADER_SEPARATOR, 0,
         Configuration.headerHeight - 1, 0.0F, 0.0F,
         width, 2, 32, 2);
 
     // Bind and draw footer texture
     RenderSystem.setShaderTexture(0, Screen.INWORLD_FOOTER_SEPARATOR);
-    context.blit(Screen.INWORLD_FOOTER_SEPARATOR, 0,
+    context.blit(this.renderTypeGui, Screen.INWORLD_FOOTER_SEPARATOR, 0,
         height - Configuration.footerHeight - 1, 0.0F,
         0.0F, width, 2, 32, 2);
 
@@ -796,7 +869,7 @@ public class AdvancementReloadedScreen extends Screen implements ClientAdvanceme
    * @param x       the x-coordinate of the widget or tab
    * @param y       the y-coordinate of the widget or tab
    */
-  private void drawWidgetTooltip(final GuiGraphics context, final int mouseX, final int mouseY, final int x,
+  private void renderWidgetTooltip(final GuiGraphics context, final int mouseX, final int mouseY, final int x,
       final int y) {
     if (this.selectedTab.isPresent()) {
       context.pose().pushPose();
@@ -836,6 +909,7 @@ public class AdvancementReloadedScreen extends Screen implements ClientAdvanceme
         // This is used to identify the tab in the tab list and to determine
         // the correct position on UI.
         tab.setIndex(index);
+        tab.setTabPlacement(Configuration.aboveWidgetLimit > index ? TabPlacement.ABOVE : TabPlacement.BELOW);
         this.tabs.put(tab.getRoot().holder(), tab);
       }
     }
@@ -934,7 +1008,7 @@ public class AdvancementReloadedScreen extends Screen implements ClientAdvanceme
    */
   public void setSelectedTab(final Optional<AdvancementReloadedTab> tab) {
     this.selectedTab = tab;
-    this.setClickableRegions();
+    this.initClickableRegions();
   }
 
   /**
@@ -949,7 +1023,7 @@ public class AdvancementReloadedScreen extends Screen implements ClientAdvanceme
     this.selectedWidget = widget;
     this.scrollOffset = 0;
     Memory.setWidget(widget);
-    this.setClickableRegions();
+    this.initClickableRegions();
   }
 
   /**

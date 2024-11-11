@@ -52,6 +52,23 @@ This mod is a continuation of the original [Advancements Reloaded](https://modri
 
 If you enjoy using this mod and would like to support its development, please consider sponsoring via [GitHub Sponsors](https://github.com/sponsors/42atomys) or [Patreon](https://patreon.com/42atomys). Your support will help improve and maintain this project, allowing for more frequent updates and new features.
 
+## How to Update the Mod for a new Minecraft Version
+
+1. Open `./gradlew.properties` and update the version number according to the URL.
+
+2. Run the following commands:
+
+```bash
+./gradlew --refresh-dependencies
+./gradlew clean
+./gradlew genSources
+./gradlew build
+```
+
+3. Refactor and improve any problematic code as necessary.
+
+4. Test the mod in the new Minecraft version for each loader (Fabric, Forge, NeoForge, Quilt).
+
 # Special thanks
 
 Special thanks to Gbl for her contributions so far on AdvancementsInfo ❤️

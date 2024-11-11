@@ -117,7 +117,13 @@ public enum TabPlacement {
       case 0: // ABOVE
         return (this.width + 2) * index;
       case 1: // BELOW
+        // If the index is greater than the widget limit, we need to reset the index to
+        // start from 0 to prevent extra padding.
+        if (Configuration.aboveWidgetLimit <= index) {
+          return (this.width + 2) * (index - Configuration.aboveWidgetLimit);
+        }
         return (this.width + 2) * index;
+
       default:
         throw new UnsupportedOperationException("Don't know what this tab type is!" + String.valueOf(this));
     }

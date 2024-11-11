@@ -8,13 +8,11 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.fml.IExtensionPoint;
 import net.minecraftforge.fml.ModList;
-import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.fml.loading.FMLEnvironment;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import static net.minecraftforge.fml.IExtensionPoint.DisplayTest.IGNORESERVERONLY;
 
 /**
  * AdvancementsReloaded Forge Mod.
@@ -28,19 +26,21 @@ public class AdvancementsReloadedForge {
 
   /**
    * Instantiates a new AdvancementsReloaded mod for Forge.
+   *
+   * @param context the context
    */
-  public AdvancementsReloadedForge() {
+  public AdvancementsReloadedForge(final FMLJavaModLoadingContext context) {
     LOGGER.info("[AdvancementsReloaded] Starting...");
 
     if (FMLEnvironment.dist == Dist.DEDICATED_SERVER) {
       LOGGER.warn("[AdvancementsReloaded] Not supported on dedicated server!");
     } else {
-      DistExecutor.safeRunWhenOn(Dist.CLIENT, () -> ClientSetup::setup);
+      DistExecutor.safeRunWhenOn(Dist.CLIENT, () -> () -> ClientSetup.setup(context));
     }
   }
 
   private static final class ClientSetup {
-    private static void setup() {
+    private static void setup(final FMLJavaModLoadingContext context) {
       setupModules();
 
       // Register server and game events that we are interested in.
@@ -48,8 +48,8 @@ public class AdvancementsReloadedForge {
       // Make sure the mod being absent on the other network side does not cause the
       // client to display the server
       // as incompatible.
-      ModLoadingContext.get().registerExtensionPoint(IExtensionPoint.DisplayTest.class,
-          () -> new IExtensionPoint.DisplayTest(() -> IGNORESERVERONLY, (a, b) -> true));
+      // ModLoadingContext.get().registerDisplayTest(IExtensionPoint.DisplayTest.IGNORE_SERVER_VERSION);
+      context.registerDisplayTest(IExtensionPoint.DisplayTest.IGNORE_ALL_VERSION);
 
       // Sets up Cloth Config if it is installed
       if (ModList.get().isLoaded("cloth_config"))
