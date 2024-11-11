@@ -6,7 +6,6 @@ import codes.atomys.advr.TabPlacement;
 import codes.atomys.advr.config.Configuration;
 import codes.atomys.advr.config.gui.ConfigurationScreen;
 import codes.atomys.advr.utils.Memory;
-import codes.atomys.advr.utils.Utils;
 import com.google.common.collect.Maps;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -141,10 +140,6 @@ public class AdvancementReloadedScreen extends Screen implements ClientAdvanceme
             .sprite(GEAR_GUI_SPRITE_TEXURE, 14, 14)
             .build());
     settingsIconButton.setPosition(this.width - 25, 5);
-
-    Utils.LOGGER.info("Screen initialized with settings button at position: " + settingsIconButton.getX() + ", "
-        + settingsIconButton.getY() + "." + " The button has a width of " + settingsIconButton.getWidth()
-        + " and a height of " + settingsIconButton.getHeight() + ".");
   }
 
   /**
